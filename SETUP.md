@@ -5,6 +5,85 @@
 
 ---
 
+## 0. خطوة مهمة جداً ولازمة أولاً: إضافة "خط بناء التطبيق" (Workflow)
+
+كل الكود انرفع للمستودع بنجاح، **ما عدا ملف واحد** بسبب صلاحيات الرمز
+(Token) المستخدم -- ملف `.github/workflows/build.yml` وهو المسؤول عن
+تشغيل عملية بناء ملف APK تلقائياً. لازم تضيفه مرة وحدة يدوياً من متصفح
+الإنترنت (خطوة بسيطة، تاخذ دقيقتين):
+
+1. افتح: https://github.com/reemalfadly/mutaba3a-app
+2. اضغط زر **Add file > Create new file** (أعلى يمين قائمة الملفات).
+3. في خانة اسم الملف اكتب بالضبط: `.github/workflows/build.yml`
+   (اكتب الجزء اللي فيه `/` وراح ينشئ المجلدات تلقائياً).
+4. الصق هذا المحتوى بالضبط داخل صندوق تحرير الملف:
+
+```yaml
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache buildozer global directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+
+      - name: Cache buildozer local (.buildozer) directory
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: buildozer-local-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-local-${{ runner.os }}-
+
+      - name: Build debug APK with buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          buildozer_version: stable
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutaba3a-debug-apk
+          path: ${{ steps.buildozer.outputs.filename }}
+          if-no-files-found: error
+```
+
+5. انزل لأسفل الصفحة واضغط الزر الأخضر **Commit changes...** ثم
+   **Commit changes** مرة ثانية في النافذة اللي تفتح (اختر "Commit
+   directly to the main branch").
+6. بمجرد ما تحفظ، بيبدأ بناء APK تلقائياً -- روح لتبويب **Actions**
+   بالمستودع لمتابعته (اشرح بالتفصيل في القسم 4 تحت).
+
+بعد هذي الخطوة مرة وحدة، أي تعديل مستقبلي (مثل إضافة مفاتيح API) بيشغّل
+بناء جديد تلقائياً بدون ما تكرر هذي الخطوة.
+
+---
+
 ## 1. التطبيق يشتغل من الآن بدون أي إعداد إضافي
 
 التطبيق فيه ميزات تشتغل *فوراً* بدون أي مفتاح (API key):
