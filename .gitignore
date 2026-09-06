@@ -1,0 +1,25 @@
+# Buildozer / python-for-android build artifacts
+.buildozer/
+bin/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Kivy
+.kivy/
+
+# Environment / secrets
+.env
+*.env.local
+
+# Local app data (SQLite dev database)
+.data/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
