@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>متابعة</title>
+<meta name="description" content="تطبيق شخصي: المواعيد، مواقيت الصلاة، وقائمة المهام.">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0e7c6b">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="متابعة">
+<style>
+  :root{
+    --bg:#f4f6f6; --surface:#ffffff; --text:#14201e; --muted:#6a7a77;
+    --primary:#0e7c6b; --primary-ink:#ffffff; --line:#e3e9e8;
+    --danger:#c2452f; --accent:#0e7c6b0d; --shadow:0 1px 3px rgba(0,0,0,.08),0 6px 18px rgba(0,0,0,.06);
+    --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0f1615; --surface:#18211f; --text:#e9efee; --muted:#93a29f;
+      --primary:#2ea88f; --primary-ink:#04140f; --line:#26322f;
+      --danger:#ef6a52; --accent:#2ea88f14; --shadow:0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:"Segoe UI","Noto Naskh Arabic","Tahoma",system-ui,sans-serif;
+    font-size:16px;line-height:1.5;overscroll-behavior-y:contain;
+  }
+  #app{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+  header{
+    padding:calc(14px + var(--safe-t)) 18px 14px;background:var(--primary);color:var(--primary-ink);
+    position:sticky;top:0;z-index:5;
+  }
+  header h1{margin:0;font-size:20px;font-weight:700;letter-spacing:.5px}
+  header p{margin:2px 0 0;font-size:13px;opacity:.85}
+  main{flex:1;padding:16px 14px 96px}
+  .view{display:none}
+  .view.active{display:block;animation:fade .2s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+  .section-title{font-size:14px;color:var(--muted);margin:18px 4px 8px;font-weight:600}
+  .section-title:first-child{margin-top:0}
+
+  /* buttons */
+  button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:11px 16px;background:var(--primary);color:var(--primary-ink);font-weight:600}
+  button.ghost{background:transparent;color:var(--primary);padding:8px}
+  button.danger{background:transparent;color:var(--danger);padding:8px 10px;font-size:14px}
+  button:active{transform:scale(.97)}
+  .fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--safe-b));
+    width:auto;padding:13px 22px;border-radius:999px;box-shadow:var(--shadow);z-index:6;font-size:15px}
+
+  /* forms */
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 2px 4px}
+  input,textarea,select{
+    width:100%;font:inherit;color:var(--text);background:var(--surface);
+    border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+  }
+  textarea{min-height:64px;resize:vertical}
+  input:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:0;border-color:transparent}
+
+  /* appointments */
+  .appt{padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start}
+  .appt .when{flex:0 0 auto;text-align:center;background:var(--accent);border-radius:12px;padding:8px 10px;min-width:62px}
+  .appt .when b{display:block;font-size:20px;line-height:1;color:var(--primary)}
+  .appt .when span{font-size:12px;color:var(--muted)}
+  .appt .body{flex:1;min-width:0}
+  .appt .body h3{margin:0 0 2px;font-size:16px}
+  .appt .meta{font-size:13px;color:var(--muted);word-break:break-word}
+  .appt.past{opacity:.55}
+
+  /* prayer */
+  .pdate{text-align:center;margin-bottom:14px}
+  .pdate .hij{font-size:18px;font-weight:700}
+  .pdate .greg{font-size:13px;color:var(--muted)}
+  .pnext{margin:0 auto 14px;padding:14px;text-align:center;background:var(--primary);color:var(--primary-ink);border-radius:16px}
+  .pnext .lbl{font-size:13px;opacity:.9}
+  .pnext .name{font-size:22px;font-weight:800;margin:2px 0}
+  .pnext .cd{font-size:15px;font-variant-numeric:tabular-nums}
+  .prow{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .prow:last-child{border-bottom:0}
+  .prow.on{background:var(--accent)}
+  .prow .n{font-weight:700}
+  .prow .t{font-variant-numeric:tabular-nums;color:var(--muted)}
+  .prow.on .t{color:var(--primary)}
+  .note{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+
+  /* todo */
+  .todo{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line)}
+  .todo:last-child{border-bottom:0}
+  .todo input[type=checkbox]{width:22px;height:22px;flex:0 0 auto;accent-color:var(--primary)}
+  .todo span{flex:1;word-break:break-word}
+  .todo.done span{text-decoration:line-through;color:var(--muted)}
+  .addrow{display:flex;gap:8px;margin-bottom:12px}
+  .addrow input{flex:1}
+  .addrow button{flex:0 0 auto}
+
+  .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:15px}
+
+  /* nav */
+  nav{
+    position:fixed;bottom:0;left:0;right:0;max-width:560px;margin:0 auto;
+    background:var(--surface);border-top:1px solid var(--line);
+    display:flex;padding-bottom:var(--safe-b);z-index:6;
+  }
+  nav button{flex:1;background:transparent;color:var(--muted);border-radius:0;padding:10px 4px 8px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:600}
+  nav button.on{color:var(--primary)}
+  nav svg{width:24px;height:24px}
+
+  /* modal */
+  dialog{border:0;border-radius:20px 20px 0 0;padding:0;width:100%;max-width:560px;margin:auto auto 0;
+    background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+  dialog::backdrop{background:rgba(0,0,0,.45)}
+  .sheet{padding:18px 18px calc(18px + var(--safe-b))}
+  .sheet h2{margin:0 0 4px;font-size:18px}
+  .sheet .actions{display:flex;gap:10px;margin-top:16px}
+  .sheet .actions button{flex:1}
+  .install{margin:10px 4px 0}
+  .install button{width:100%;background:transparent;color:var(--primary);border:1px dashed var(--primary)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>متابعة</h1>
+    <p id="subtitle">مواعيدك · مواقيت الصلاة · مهامك</p>
+  </header>
+
+  <main>
+    <!-- المواعيد -->
+    <section id="v-appt" class="view active">
+      <div class="install" id="installWrap" hidden>
+        <button id="installBtn">➕ تثبيت التطبيق على الجوال</button>
+      </div>
+      <div id="apptList"></div>
+    </section>
+
+    <!-- الصلاة -->
+    <section id="v-pray" class="view">
+      <div class="pdate">
+        <div class="hij" id="hijDate">…</div>
+        <div class="greg" id="gregDate"></div>
+      </div>
+      <div class="pnext" id="pnext" hidden>
+        <div class="lbl">الصلاة القادمة</div>
+        <div class="name" id="pnextName">—</div>
+        <div class="cd" id="pnextCd">—</div>
+      </div>
+      <div class="card" id="prayList"></div>
+      <div class="note" id="prayNote"></div>
+      <div style="text-align:center;margin-top:12px">
+        <button class="ghost" id="prayRefresh">تحديث المواقيت</button>
+      </div>
+    </section>
+
+    <!-- المهام -->
+    <section id="v-todo" class="view">
+      <div class="addrow">
+        <input id="todoInput" type="text" placeholder="أضف مهمة…" enterkeyhint="done">
+        <button id="todoAdd">إضافة</button>
+      </div>
+      <div class="card" id="todoList"></div>
+      <div style="text-align:center;margin-top:12px">
+        <button class="danger" id="todoClear">حذف المهام المكتملة</button>
+      </div>
+    </section>
+  </main>
+
+  <button class="fab" id="fab">＋ موعد جديد</button>
+
+  <nav>
+    <button data-go="appt" class="on">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+      المواعيد
+    </button>
+    <button data-go="pray">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 21V10l7-5 7 5v11M9 21v-5h6v5"/></svg>
+      الصلاة
+    </button>
+    <button data-go="todo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      المهام
+    </button>
+  </nav>
+</div>
+
+<dialog id="apptDlg">
+  <form method="dialog" class="sheet" id="apptForm">
+    <h2>موعد جديد</h2>
+    <label for="f-title">العنوان</label>
+    <input id="f-title" name="title" required maxlength="120" placeholder="مثال: مراجعة الطبيب">
+    <label for="f-date">التاريخ</label>
+    <input id="f-date" name="date" type="date" required>
+    <label for="f-time">الوقت</label>
+    <input id="f-time" name="time" type="time">
+    <label for="f-loc">المكان</label>
+    <input id="f-loc" name="location" maxlength="160" placeholder="اختياري">
+    <label for="f-notes">ملاحظات</label>
+    <textarea id="f-notes" name="notes" maxlength="600" placeholder="اختياري"></textarea>
+    <div class="actions">
+      <button type="button" class="ghost" id="apptCancel" style="border:1px solid var(--line)">إلغاء</button>
+      <button value="save">حفظ</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+const KEY = { appt:"motaba3a.appointments", todo:"motaba3a.todos", pray:"motaba3a.prayerCache" };
+const PRAYERS = [
+  ["Fajr","الفجر"],["Sunrise","الشروق"],["Dhuhr","الظهر"],
+  ["Asr","العصر"],["Maghrib","المغرب"],["Isha","العشاء"]
+];
+const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const pad2 = n => String(n).padStart(2, "0");
+
+/* ---------- التنقل ---------- */
+function go(name){
+  $$(".view").forEach(v => v.classList.toggle("active", v.id === "v-"+name));
+  $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.go === name));
+  $("#fab").hidden = name !== "appt";
+  const subs = { appt:"مواعيدك القادمة", pray:"مواقيت الصلاة — الكويت", todo:"قائمة مهامك" };
+  $("#subtitle").textContent = subs[name];
+  if (name === "pray") renderPray();
+}
+$$("nav button").forEach(b => b.onclick = () => go(b.dataset.go));
+
+/* ---------- المواعيد ---------- */
+const fmtDate = ymd => {
+  const [y,m,d] = ymd.split("-").map(Number);
+  return new Date(y, m-1, d).toLocaleDateString("ar", { weekday:"long", day:"numeric", month:"long", calendar:"gregory" });
+};
+const fmtTime = hm => {
+  if (!hm) return "";
+  let [h,m] = hm.split(":").map(Number);
+  const am = h < 12;
+  h = h % 12 || 12;
+  return `${h}:${pad2(m)} ${am ? "ص" : "م"}`;
+};
+function renderAppt(){
+  const list = load(KEY.appt, []).slice().sort((a,b) =>
+    (a.date + (a.time||"99:99")).localeCompare(b.date + (b.time||"99:99")));
+  const todayY = new Date().toISOString().slice(0,10);
+  const box = $("#apptList");
+  if (!list.length){ box.innerHTML = `<div class="empty">لا توجد مواعيد.<br>اضغط «＋ موعد جديد» للإضافة.</div>`; return; }
+  const upcoming = list.filter(a => a.date >= todayY);
+  const past = list.filter(a => a.date < todayY).reverse();
+  const card = a => {
+    const [y,m,d] = a.date.split("-");
+    const isPast = a.date < todayY;
+    return `<div class="appt card ${isPast?"past":""}">
+      <div class="when"><b>${Number(d)}</b><span>${new Date(y,m-1,d).toLocaleDateString("ar",{month:"short",calendar:"gregory"})}</span></div>
+      <div class="body">
+        <h3>${esc(a.title)}</h3>
+        <div class="meta">${fmtDate(a.date)}${a.time?" · "+fmtTime(a.time):""}</div>
+        ${a.location?`<div class="meta">📍 ${esc(a.location)}</div>`:""}
+        ${a.notes?`<div class="meta">${esc(a.notes)}</div>`:""}
+        <button class="danger" data-del="${a.id}">حذف</button>
+      </div></div>`;
+  };
+  box.innerHTML =
+    (upcoming.length ? `<div class="section-title">القادمة</div>` + upcoming.map(card).join("") : "") +
+    (past.length ? `<div class="section-title">السابقة</div>` + past.map(card).join("") : "");
+  $$("[data-del]", box).forEach(btn => btn.onclick = () => {
+    if (!confirm("حذف هذا الموعد؟")) return;
+    save(KEY.appt, load(KEY.appt, []).filter(x => x.id !== btn.dataset.del));
+    renderAppt();
+  });
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const dlg = $("#apptDlg");
+$("#fab").onclick = () => {
+  $("#apptForm").reset();
+  $("#f-date").value = new Date().toISOString().slice(0,10);
+  dlg.showModal();
+};
+$("#apptCancel").onclick = () => dlg.close();
+$("#apptForm").addEventListener("submit", e => {
+  if (e.submitter && e.submitter.value !== "save") return;
+  const f = new FormData(e.target);
+  const rec = {
+    id: uid(),
+    title: (f.get("title")||"").trim(),
+    date: f.get("date"),
+    time: f.get("time")||"",
+    location: (f.get("location")||"").trim(),
+    notes: (f.get("notes")||"").trim(),
+  };
+  if (!rec.title || !rec.date) return;
+  const all = load(KEY.appt, []);
+  all.push(rec);
+  save(KEY.appt, all);
+  renderAppt();
+});
+
+/* ---------- المهام ---------- */
+function renderTodo(){
+  const list = load(KEY.todo, []);
+  const box = $("#todoList");
+  if (!list.length){ box.innerHTML = `<div class="empty">لا توجد مهام.</div>`; return; }
+  box.innerHTML = list.map(t => `
+    <label class="todo ${t.done?"done":""}">
+      <input type="checkbox" data-tog="${t.id}" ${t.done?"checked":""}>
+      <span>${esc(t.text)}</span>
+      <button class="danger" data-del="${t.id}">✕</button>
+    </label>`).join("");
+  $$("[data-tog]", box).forEach(c => c.onchange = () => {
+    const all = load(KEY.todo, []);
+    const it = all.find(x => x.id === c.dataset.tog);
+    if (it) it.done = c.checked;
+    save(KEY.todo, all); renderTodo();
+  });
+  $$("[data-del]", box).forEach(b => b.onclick = () => {
+    save(KEY.todo, load(KEY.todo, []).filter(x => x.id !== b.dataset.del));
+    renderTodo();
+  });
+}
+function addTodo(){
+  const i = $("#todoInput");
+  const text = i.value.trim();
+  if (!text) return;
+  const all = load(KEY.todo, []);
+  all.unshift({ id: uid(), text, done: false });
+  save(KEY.todo, all);
+  i.value = "";
+  renderTodo();
+}
+$("#todoAdd").onclick = addTodo;
+$("#todoInput").addEventListener("keydown", e => { if (e.key === "Enter") addTodo(); });
+$("#todoClear").onclick = () => {
+  save(KEY.todo, load(KEY.todo, []).filter(t => !t.done));
+  renderTodo();
+};
+
+/* ---------- مواقيت الصلاة ---------- */
+const API = "https://api.aladhan.com/v1/timingsByCity?city=Kuwait%20City&country=Kuwait&method=9";
+const cleanT = s => (s||"").trim().split(" ")[0];           // "04:03 (+03)" -> "04:03"
+const todayYMD = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+};
+
+async function fetchPray(force){
+  const cache = load(KEY.pray, null);
+  if (!force && cache && cache.ymd === todayYMD()) return cache;
+  try{
+    const r = await fetch(API, { cache: "no-store" });
+    const j = await r.json();
+    if (j.code !== 200) throw new Error("bad");
+    const t = j.data.timings, h = j.data.date.hijri, g = j.data.date.gregorian;
+    const rec = {
+      ymd: todayYMD(),
+      timings: Object.fromEntries(PRAYERS.map(([k]) => [k, cleanT(t[k])])),
+      hijri: `${h.day} ${h.month.ar} ${h.year} هـ`,
+      greg: `${g.day} ${g.month.en} ${g.year}`,
+      fetchedAt: Date.now(),
+    };
+    save(KEY.pray, rec);
+    return rec;
+  }catch(e){
+    return cache;   // قد تكون قديمة
+  }
+}
+
+let cdTimer = null;
+async function renderPray(force){
+  const data = await fetchPray(force);
+  const listEl = $("#prayList"), noteEl = $("#prayNote");
+  if (!data){
+    $("#hijDate").textContent = "لا يوجد اتصال";
+    $("#gregDate").textContent = "افتح التطبيق مرة واحدة مع الإنترنت لحفظ المواقيت";
+    listEl.innerHTML = ""; $("#pnext").hidden = true; noteEl.textContent = "";
+    return;
+  }
+  $("#hijDate").textContent = data.hijri || "";
+  $("#gregDate").textContent = data.greg || "";
+  const now = new Date();
+  const toDate = hm => { const [h,m] = hm.split(":").map(Number); const d = new Date(now); d.setHours(h,m,0,0); return d; };
+  const rows = PRAYERS.map(([k,ar]) => ({ k, ar, hm: data.timings[k], at: toDate(data.timings[k]) }));
+  // الصلاة القادمة (نتجاهل الشروق)
+  const upcoming = rows.filter(r => r.k !== "Sunrise" && r.at > now);
+  const next = upcoming[0] || null;
+  listEl.innerHTML = rows.map(r =>
+    `<div class="prow ${next && r.k===next.k ? "on":""}">
+       <span class="n">${r.ar}</span><span class="t">${fmtTime(r.hm)}</span>
+     </div>`).join("");
+  const pn = $("#pnext");
+  if (data.ymd !== todayYMD()){
+    noteEl.textContent = "المواقيت محفوظة من تاريخ سابق — حدّث مع وجود إنترنت.";
+  } else {
+    noteEl.textContent = data.fetchedAt ? "آخر تحديث: " + new Date(data.fetchedAt).toLocaleString("ar") : "";
+  }
+  clearInterval(cdTimer);
+  if (next && data.ymd === todayYMD()){
+    pn.hidden = false;
+    $("#pnextName").textContent = next.ar;
+    const tick = () => {
+      let s = Math.max(0, Math.floor((next.at - new Date())/1000));
+      const h = Math.floor(s/3600); s %= 3600;
+      const m = Math.floor(s/60); s %= 60;
+      $("#pnextCd").textContent = `بعد ${h} س ${pad2(m)} د ${pad2(s)} ث`;
+      if (next.at - new Date() <= 0){ clearInterval(cdTimer); renderPray(); }
+    };
+    tick(); cdTimer = setInterval(tick, 1000);
+  } else {
+    pn.hidden = true;
+  }
+}
+$("#prayRefresh").onclick = () => renderPray(true);
+
+/* ---------- تثبيت PWA ---------- */
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  $("#installWrap").hidden = false;
+});
+$("#installBtn").onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  $("#installWrap").hidden = true;
+};
+window.addEventListener("appinstalled", () => { $("#installWrap").hidden = true; });
+
+/* ---------- بدء التشغيل ---------- */
+renderAppt();
+renderTodo();
+go("appt");
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>
